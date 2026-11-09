@@ -21,23 +21,27 @@ details{margin-bottom:16px}summary{font-size:17px;font-weight:700;cursor:pointer
 .blk{margin:8px 0 14px}.blk th,.blk td{white-space:normal;min-width:120px;vertical-align:top}.blk th.rh{position:sticky;left:0;background:var(--card);min-width:120px}
 [data-c]{position:relative;cursor:help}[data-c]::after{content:"";position:absolute;top:0;right:0;border-style:solid;border-width:0 10px 10px 0;border-color:transparent #e4a400 transparent transparent}
 #tip{position:fixed;display:none;z-index:50;background:#222;color:#fff;max-width:280px;white-space:pre-line;padding:6px 9px;border-radius:6px;font-size:12px;box-shadow:0 2px 8px #0005}
+.fl{animation:flash 1.1s ease-in-out infinite;outline:2px solid #e4a400;outline-offset:-2px}
+@keyframes flash{0%,100%{background:var(--a)}50%{background:transparent}}
+.tag.fl{outline:none;background:var(--a);color:var(--at)}.cap{white-space:pre-line;font-size:12px;color:var(--mut);margin-top:2px}.upd{font-size:11px;color:var(--at);font-weight:600}
+.tabs button.flash{animation:flash 1.1s infinite;outline:2px solid #e4a400}
+@media(prefers-reduced-motion:reduce){.fl,.tabs button.flash{animation:none}}
 </style></head><body>
-<h1>Shell vs Competitors: Live Segment-wise Comparison</h1>
-<p class="sub">Every Shell SKU with each competitor’s related product beside it, per segment.</p>
-<div class="bar"><input id="api" placeholder="Apps Script web app URL (…/exec)" style="min-width:280px;flex:1"><button id="go">Connect</button><button id="rf">Refresh</button><small id="st"></small></div>
+<h1>Shell Competition Price Benchmarking</h1>
+<div class="bar"><button id="rf">Refresh</button><small id="st"></small></div>
 <div class="bar">
-<input type="file" id="f" accept=".csv,.txt" title="Offline fallback: load a CSV instead of the API">
 <select id="basis"></select>
 <select id="unit"><option value="p">Price column is per pack</option><option value="l">Price column is per litre</option></select>
 <select id="cat"></select>
 <input id="q" placeholder="Search Shell SKU / viscosity…">
 <label><input type="checkbox" id="sus" checked> Ignore ₹/L under 100 in summaries</label>
 </div>
-<div class="bar tabs"><button data-t="cmp" class="on">Segment view</button><button data-t="seg">Segment summary</button><button data-t="hi">Cheapest &amp; costliest</button></div>
+<div class="bar tabs"><button data-t="cmp" class="on">Segment view</button><button data-t="sch" id="tb-sch">Schemes &amp; Additional Offers</button><button data-t="seg">Segment summary</button><button data-t="hi">Cheapest &amp; costliest</button></div>
 <div id="info"></div>
-<div id="out"><div class="empty">Paste your Apps Script web app URL above and press Connect (or load a CSV as a fallback).</div></div>
+<div id="out"><div class="empty">Loading live data…</div></div>
 <script>
-const $=s=>document.querySelector(s);let ALL=[],CAP={},FL=[],PC=[],tab='cmp',dim='c';
+const API_URL='https://script.google.com/macros/s/AKfycbxlqOV0HndzVjrTFE5S0BvLpm6M0QB_3Mhuet0vegjzkpeqbcM1Ao3tltmi0NadtSMS1w/exec';  // <- paste your Apps Script web app URL (…/exec) here
+const $=s=>document.querySelector(s);let CH={},CAPMAP={},SPC=false,ALL=[],CAP={},FL=[],PC=[],tab='cmp',dim='c';
 const ORD=['PCMO','MCO','CVO','AGRI','AUTO 3 WHEELER'];
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num=v=>{v=parseFloat(String(v||'').replace(/[₹,\s]/g,''));return isNaN(v)?null:v};
@@ -53,45 +57,66 @@ if(/agri|tract|xhd|unitrac|dynatrans|utto|hdb|rimula r1|all fleet multi|turbo pl
 if(b=='Castrol'||/quartz|all climate|universal|helix|x-clean|perfomax|ecomile|protec|8000|8100|4100|trd sport|multi g\+|multi fleet|super diesel x-10|max td|tata motors|formula|ultrasynth|mobil 1|super (all-in-one|friction|everyday)|genuine diesel|synpower/.test(s))return'PCMO';
 return/^S/.test(f)&&!/multipurpose/.test(s)?'PCMO':'CVO'}
 const load=txt=>loadTable(parseCSV(txt));
-function loadTable(t){const H=t[0].map(x=>x.trim()),L=H.map(x=>x.toLowerCase()),ix=k=>L.indexOf(k),seen=new Set();ALL=[];CAP={};FL=[];PC=[];
-const I={b:ix('brand'),n:ix('product name'),p:ix('pack size'),v:ix('viscosity grade'),a:ix('api specification'),t:ix('oil technology'),c:ix('category')>=0?ix('category'):ix('segment')};
-if(I.b<0||I.n<0||I.p<0){$('#out').innerHTML='<div class="empty">Could not find Brand / Product Name / Pack Size headers.</div>';return}
+function loadTable(t,changes){const H=t[0].map(x=>x.trim()),L=H.map(x=>x.toLowerCase()),ix=k=>L.indexOf(k),seen=new Set();ALL=[];CAP={};FL=[];PC=[];CH={};CAPMAP={};
+const I={s:ix('shell products')>=0?ix('shell products'):ix('shell product'),b:ix('brand'),n:ix('product name'),p:ix('pack size'),v:ix('viscosity grade'),a:ix('api specification'),t:ix('oil technology'),c:ix('category')>=0?ix('category'):ix('segment')};
+SPC=I.s>=0;if(I.b<0||I.n<0||I.p<0){$('#out').innerHTML='<div class="empty">Could not find Brand / Product Name / Pack Size headers.</div>';return}
 let end=H.findIndex((h,i)=>i>I.b&&!h);if(end<0)end=H.length;const capOf=h=>{let m=h.match(/^caption\s*[-:–]\s*(.*)$/i)||h.match(/^(.*?)\s*\(\s*caption\s*\)$/i);return m?m[1].trim():null};
-H.forEach((h,i)=>{const c=capOf(h);if(c!==null)CAP[i]=nz(c);else if(i<end&&![I.b,I.n,I.c].includes(i))FL.push({i,h})});
+H.forEach((h,i)=>{const c=capOf(h);if(c!==null)CAP[i]=nz(c);else if(i<end&&![I.b,I.n,I.c,I.s].includes(i))FL.push({i,h})});
 const first=['pack size','api specification','viscosity grade','oil technology'];FL.sort((x,y)=>{const a=first.indexOf(x.h.toLowerCase()),b=first.indexOf(y.h.toLowerCase());return(a<0?99:a)-(b<0?99:b)||x.i-y.i});
 PC=FL.filter(f=>/^(dlp|mrp|net rbp|mlp.*)$/i.test(f.h));
+Object.keys(CAP).forEach(i=>{const g=FL.find(f=>nz(f.h)==CAP[i])||FL.find(f=>nz(f.h).startsWith(CAP[i]))||FL.find(f=>nz(f.h).includes(CAP[i]));CAPMAP[nz(H[i])]=g?g.h:'Product Name'});
 for(const r of t.slice(1)){const b=(r[I.b]||'').trim();if(!b)continue;const n=(r[I.n]||'').trim(),p=num(r[I.p]),raw={},cm={},pr={};
 FL.forEach(f=>raw[f.h]=(r[f.i]||'').trim());PC.forEach(f=>pr[f.h]=num(r[f.i]));
 const k=[b,n,p,JSON.stringify(pr)].join('|');if(seen.has(k))continue;seen.add(k);
 Object.keys(CAP).forEach(i=>{const x=(r[i]||'').trim();if(!x)return;const g=FL.find(f=>nz(f.h)==CAP[i])||FL.find(f=>nz(f.h).startsWith(CAP[i]))||FL.find(f=>nz(f.h).includes(CAP[i])),key=g?g.h:'Product Name';cm[key]=cm[key]?cm[key]+'\n'+x:x});
-const ap=I.a>=0?r[I.a]:'';ALL.push({b,n,p,c:I.c>=0&&(r[I.c]||'').trim()?r[I.c].trim().toUpperCase():segOf(n,ap,p,b),v:visc(n,I.v>=0?r[I.v]:''),a:ap,ak:api(ap),t:I.t>=0?(r[I.t]||'').trim():'',raw,cm,pr})}
+const ap=I.a>=0?r[I.a]:'';ALL.push({k:[b,n,(r[I.p]||'').trim()].join('|').toLowerCase(),sp:b=='Shell'||I.s<0?[]:(r[I.s]||'').split(/[;,\n|\/]+/).map(x=>x.trim()).filter(Boolean),b,n,p,c:I.c>=0&&(r[I.c]||'').trim()?r[I.c].trim().toUpperCase():segOf(n,ap,p,b),v:visc(n,I.v>=0?r[I.v]:''),a:ap,ak:api(ap),t:I.t>=0?(r[I.t]||'').trim():'',raw,cm,pr})}
 const has=PC.findIndex(f=>ALL.some(r=>r.pr[f.h]!=null));$('#basis').innerHTML=PC.length?PC.map((f,i)=>`<option value="${i}">Price basis: ${esc(f.h)}</option>`).join(''):'<option>No price column</option>';$('#basis').value=Math.max(has,0);
 const cs=[...new Set(ALL.map(r=>r.c))].sort((x,y)=>ORD.indexOf(x)-ORD.indexOf(y));$('#cat').innerHTML='<option value="">All segments</option>'+cs.map(c=>`<option>${esc(c)}</option>`).join('');
-$('#info').innerHTML=`<div class="note">${ALL.length} products loaded. ${I.c<0?'The sheet has no Category column, so segments are assigned from product name / API / pack size. Add a “Category” column for exact grouping. ':''}${has<0?'No price values found yet in '+(PC.map(f=>esc(f.h)).join(', ')||'any price column')+', so the ₹/L comparison, summary and cheapest / costliest views stay empty until prices are filled.':''}</div>`;render()}
+$('#info').innerHTML=`<div class="note">${ALL.length} products loaded. ${I.c<0?'The sheet has no Category column, so segments are assigned from product name / API / pack size. Add a “Category” column for exact grouping. ':''}${SPC?'':'No “Shell Products” column found, so competition products are auto-matched by segment and viscosity. '}${has<0?'No price values found yet in '+(PC.map(f=>esc(f.h)).join(', ')||'any price column')+', so the ₹/L comparison, summary and cheapest / costliest views stay empty until prices are filled.':''}</div>`;(changes||[]).forEach(c=>{const h=CAPMAP[nz(c.f)]||c.f,k=c.k+'|'+nz(h),t=Date.parse(c.t);if(t&&(!CH[k]||t>CH[k]))CH[k]=t});render()}
 function R(){const f=PC[+$('#basis').value],u=$('#unit').value;return ALL.map(r=>{const v=f?r.pr[f.h]:null;return{...r,ppl:v&&r.p?(u=='l'?v:v/r.p):null}})}
 const Rp=rs=>rs.filter(r=>r.ppl!=null&&!($('#sus').checked&&r.ppl<100));
 const col=d=>d<-2?'g':d>2?'r':'a';const dcol=d=>Math.abs(d)<0.5?'a':d>0?'g':'r';
 function stats(a){if(!a.length)return null;const s=[...a].sort((x,y)=>x.ppl-y.ppl);return{n:a.length,avg:a.reduce((t,x)=>t+x.ppl,0)/a.length,lo:s[0],hi:s[s.length-1]}}
 const desc=r=>`${r.b} · ${r.n} · ${r.p}L`;
-function blk(s,bs,rs){const u=$('#unit').value,ok=(x,y,k)=>x[k]==y[k]?0:1;
-const cs=[s,...bs.map(b=>rs.filter(r=>r.b==b&&r.c==s.c&&r.v==s.v).sort((x,y)=>ok(x,s,'ak')-ok(y,s,'ak')||ok(x,s,'t')-ok(y,s,'t')||Math.abs(x.p-s.p)-Math.abs(y.p-s.p)||(x.ppl||0)-(y.ppl||0))[0]||null)];
-const dc=x=>x?` data-c="${esc(x)}"`:'';
-const th=cs.map((r,i)=>r?`<th${dc(r.cm['Product Name'])}><small>${esc(r.b)}</small><br>${esc(r.n)}</th>`:`<th class="muted"><small>${esc(bs[i-1])}</small><br>No matching product</th>`).join('');
+const isNew=(r,h)=>{const t=CH[r.k+'|'+nz(h)];return t&&Date.now()-t<1728e5?t:0};
+const ago=t=>{const m=Math.max(1,Math.round((Date.now()-t)/6e4));return m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'};
+const TRF=()=>FL.filter(f=>/scheme|booster|offer|mlp/i.test(f.h));
+function tabBadge(rs){const T=TRF(),n=rs.filter(r=>r.b!='Shell'&&T.some(f=>isNew(r,f.h))).length,b=$('#tb-sch');b.classList.toggle('flash',n>0);b.innerHTML='Schemes &amp; Additional Offers'+(n?` <span class="tag fl">${n} updated</span>`:'')}
+function blk(s,cr){const cs=[s,...cr],dc=(r,h)=>(r.cm[h]?` data-c="${esc(r.cm[h])}"`:'')+(isNew(r,h)?' class="fl"':'');
+const th=cs.map(r=>`<th${r.cm['Product Name']?` data-c="${esc(r.cm['Product Name'])}"`:''}><small>${esc(r.b)}</small><br>${esc(r.n)}</th>`).join('');
 const rows=[];
-for(const f of FL){const vs=cs.map(r=>r?(/viscosity/i.test(f.h)?r.v:(r.raw[f.h]||'')):'');
-if(!vs.some(x=>x)&&!cs.some(r=>r&&r.cm[f.h]))continue;
-rows.push(`<tr><th class="rh">${esc(f.h)}</th>${cs.map((r,i)=>r?`<td${dc(r.cm[f.h])}>${esc(vs[i]||'—')}</td>`:'<td class="muted">—</td>').join('')}</tr>`)}
-if(s.ppl!=null&&cs.some((r,i)=>i&&r&&r.ppl!=null)){const bl=PC[+$('#basis').value].h;
-rows.push(`<tr><th class="rh">Price difference vs Shell (₹/Ltr)<br><small>${esc(bl)}</small></th>${cs.map((r,i)=>{if(!r||r.ppl==null)return'<td class="muted">—</td>';if(!i)return'<td class="muted">Base (Shell)</td>';const d=r.ppl-s.ppl;return`<td class="${dcol(d)}" title="${fm(r.ppl)}/L vs Shell ${fm(s.ppl)}/L"><b>${d>0?'+':d<0?'−':''}₹${Math.abs(d).toFixed(1)}/L</b></td>`}).join('')}</tr>`)}
-return`<div class="wrap blk"><table><tr><th class="rh">Field</th>${th}</tr>${rows.join('')}</table></div>`}
-function cmp(rs){const cat=$('#cat').value,q=$('#q').value.toLowerCase(),bs=[...new Set(rs.map(r=>r.b))].filter(b=>b!='Shell').sort();
-const all=[...new Set(rs.map(r=>r.c))].sort((x,y)=>ORD.indexOf(x)-ORD.indexOf(y)),withS=[...new Set(rs.filter(r=>r.b=='Shell').map(r=>r.c))],P=Rp(rs);
-let h=`<p class="leg"><span class="g">Competitor price higher than Shell (+₹/Ltr)</span><span class="a">Same as Shell</span><span class="r">Competitor price lower than Shell (−₹/Ltr)</span><small>Related product = same segment + viscosity, preferring same API grade and oil technology, then nearest pack size. Orange corner = comment from a Caption column – hover or tap.</small></p>`;
-for(const c of all.filter(c=>withS.includes(c)&&(!cat||c==cat))){
-const sh=rs.filter(r=>r.b=='Shell'&&r.c==c&&(r.n+' '+r.v+' '+r.p).toLowerCase().includes(q)).sort((x,y)=>x.v.localeCompare(y.v)||x.n.localeCompare(y.n)||x.p-y.p);if(!sh.length)continue;
+for(const f of FL){const pk=/pack size/i.test(f.h),vs=cs.map(r=>/viscosity/i.test(f.h)?r.v:(r.raw[f.h]||''));
+if(!vs.some(x=>x)&&!cs.some(r=>r.cm[f.h]))continue;
+rows.push(`<tr><th class="rh">${esc(f.h)}</th>${cs.map((r,i)=>`<td${dc(r,f.h)}>${esc(vs[i]||'—')}${pk&&i&&r.p!=s.p?' <small class="muted">(≠ Shell pack)</small>':''}</td>`).join('')}</tr>`)}
+if(s.ppl!=null&&cr.some(r=>r.ppl!=null)){const bl=PC[+$('#basis').value].h;
+rows.push(`<tr><th class="rh">Price difference vs Shell (₹/Ltr)<br><small>${esc(bl)}</small></th>${cs.map((r,i)=>{if(r.ppl==null)return'<td class="muted">—</td>';if(!i)return'<td class="muted">Base (Shell)</td>';const d=r.ppl-s.ppl;return`<td class="${dcol(d)}" title="${fm(r.ppl)}/L vs Shell ${fm(s.ppl)}/L"><b>${d>0?'+':d<0?'−':''}₹${Math.abs(d).toFixed(1)}/L</b></td>`}).join('')}</tr>`)}
+return`<div class="wrap blk"><table><tr><th class="rh">Field</th>${th}</tr>${rows.join('')}</table></div>`+(cr.length?'':`<p class="muted">No competition product mapped yet – put “${esc(s.n)}” in the Shell Products column of the competitor’s row.</p>`)}
+function cmp(rs){const cat=$('#cat').value,q=$('#q').value.toLowerCase(),shell=rs.filter(r=>r.b=='Shell'),G={},sv={},ss={};
+rs.filter(r=>r.b!='Shell').forEach(r=>{const k=r.b+'|'+r.n,g=G[k]=G[k]||{rows:[],maps:new Set()};g.rows.push(r);r.sp.forEach(m=>g.maps.add(m))});
+shell.forEach(s=>{sv[s.n]=s.v;ss[s.n]=s.c});const SN=Object.keys(sv),links={};
+Object.values(G).forEach(g=>{const r0=g.rows[0];
+if(SPC)g.maps.forEach(m=>{const z=nz(m);if(!z)return;let ms=SN.filter(x=>nz(x).includes(z));const same=ms.filter(x=>sv[x]==r0.v);if(same.length)ms=same;ms.forEach(x=>(links[x]=links[x]||new Set()).add(g))});
+else SN.forEach(x=>{if(ss[x]==r0.c&&sv[x]==r0.v)(links[x]=links[x]||new Set()).add(g)})});
+const all=[...new Set(shell.map(s=>s.c))].sort((x,y)=>ORD.indexOf(x)-ORD.indexOf(y)),P=Rp(rs);
+let h=`<p class="leg"><span class="g">Competitor price higher than Shell (+₹/Ltr)</span><span class="a">Same as Shell</span><span class="r">Competitor price lower than Shell (−₹/Ltr)</span><small>Orange corner = comment from a Caption column – hover or tap.</small></p>`;
+for(const c of all.filter(c=>!cat||c==cat)){
+const sh=shell.filter(r=>r.c==c&&(r.n+' '+r.v+' '+r.p).toLowerCase().includes(q)).sort((x,y)=>x.n.localeCompare(y.n)||x.p-y.p);if(!sh.length)continue;
 const st=stats(P.filter(r=>r.c==c)),sa=stats(P.filter(r=>r.c==c&&r.b=='Shell'));
-h+=`<details open><summary>${esc(c)} <small>${sh.length} Shell SKUs · ${rs.filter(r=>r.c==c).length} products</small></summary>${st?`<p class="chips"><span class="r">Cheapest: ${fm(st.lo.ppl)}/L · ${esc(desc(st.lo))}</span><span class="g">Costliest: ${fm(st.hi.ppl)}/L · ${esc(desc(st.hi))}</span>${sa?`<span class="a">Shell avg: ${fm(sa.avg)}/L</span>`:''}</p>`:''}`+sh.map(s=>blk(s,bs,rs)).join('')+'</details>'}
-const no=all.filter(c=>!withS.includes(c));if(no.length)h+=`<p class="muted">No Shell SKU in: ${no.map(esc).join(', ')}.</p>`;
+h+=`<details open><summary>${esc(c)} <small>${sh.length} Shell SKUs</small></summary>${st?`<p class="chips"><span class="r">Cheapest: ${fm(st.lo.ppl)}/L · ${esc(desc(st.lo))}</span><span class="g">Costliest: ${fm(st.hi.ppl)}/L · ${esc(desc(st.hi))}</span>${sa?`<span class="a">Shell avg: ${fm(sa.avg)}/L</span>`:''}</p>`:''}`+
+sh.map(s=>blk(s,[...(links[s.n]||[])].sort((x,y)=>x.rows[0].b.localeCompare(y.rows[0].b)||x.rows[0].n.localeCompare(y.rows[0].n)).map(g=>[...g.rows].sort((x,y)=>Math.abs(x.p-s.p)-Math.abs(y.p-s.p))[0]))).join('')+'</details>'}
+return h}
+function sch(rs){const q=$('#q').value.toLowerCase(),cat=$('#cat').value,T=TRF();
+if(!T.length)return'<div class="empty">No scheme / booster / MLP columns found in the sheet.</div>';
+const rows=rs.filter(r=>r.b!='Shell'&&(!cat||r.c==cat)&&(r.b+' '+r.n).toLowerCase().includes(q)&&T.some(f=>r.raw[f.h]||r.cm[f.h]));
+if(!rows.length)return'<div class="empty">No schemes, additional offers or MLP entered for competition products yet.</div>';
+const nw=r=>Math.max(0,...T.map(f=>isNew(r,f.h)));
+let h='<p class="leg"><span class="fl">Flashing = updated in the last 48 hours</span><small>Captions are shown under each value.</small></p>';
+for(const b of[...new Set(rows.map(r=>r.b))].sort()){const br=rows.filter(r=>r.b==b),n=br.filter(r=>nw(r)).length;
+h+=`<details open><summary>${esc(b)} <small>${br.length} SKUs</small>${n?` <span class="tag fl">${n} updated</span>`:''}</summary>`;
+for(const c of[...new Set(br.map(r=>r.c))].sort((x,y)=>ORD.indexOf(x)-ORD.indexOf(y))){
+const cr=br.filter(r=>r.c==c).sort((x,y)=>nw(y)-nw(x)||x.n.localeCompare(y.n)||x.p-y.p);
+h+=`<h3>${esc(c)}</h3><div class="wrap"><table><tr><th>Product</th><th class="n">Pack</th>${T.map(f=>`<th>${esc(f.h)}</th>`).join('')}</tr>${cr.map(r=>`<tr><td>${esc(r.n)}</td><td class="n">${r.p??''}</td>${T.map(f=>{const v=r.raw[f.h],cm=r.cm[f.h],t=isNew(r,f.h);return`<td${t?' class="fl"':''}>${v?`<b>${esc(v)}</b>`:'<span class="muted">—</span>'}${cm?`<div class="cap">${esc(cm)}</div>`:''}${t?`<div class="upd">Updated ${ago(t)}</div>`:''}</td>`}).join('')}</tr>`).join('')}</table></div>`}
+h+='</details>'}
 return h}
 const NOP='<div class="empty">No price values in the selected price column yet.</div>';
 function seg(rs){const P=Rp(rs);if(!P.length)return NOP;const bs=[...new Set(P.map(r=>r.b))].sort(),cats=[...new Set(P.map(r=>r.c))].sort((x,y)=>ORD.indexOf(x)-ORD.indexOf(y)),sel=$('#cat').value;let h='';
@@ -106,22 +131,18 @@ const rows=Object.keys(g).sort().map(k=>{const a=g[k],s=stats(a),x=stats(a.filte
 return`<tr><td><b>${esc(k)}</b></td><td class="n">${s.n}</td><td class="r">${cell(s.lo)}${s.lo.b=='Shell'?'<span class="tag a">Shell</span>':''}</td><td class="g">${cell(s.hi)}${s.hi.b=='Shell'?'<span class="tag a">Shell</span>':''}</td><td>${x?cell(x.lo):'<span class="muted">no Shell SKU</span>'}</td><td>${x?cell(x.hi):'–'}</td></tr>`}).join('');
 return`<div class="bar"><select id="dim"><option value="c">By segment</option><option value="v">By viscosity</option><option value="a">By API spec</option></select></div>
 <div class="wrap"><table><tr><th>${{c:'Segment',v:'Viscosity',a:'API'}[dim]}</th><th class="n">SKUs</th><th>Cheapest ₹/L (all brands)</th><th>Costliest ₹/L (all brands)</th><th>Shell cheapest</th><th>Shell costliest</th></tr>${rows}</table></div>`}
-function render(){if(!ALL.length)return;const rs=R();$('#out').innerHTML=tab=='cmp'?cmp(rs):tab=='seg'?seg(rs):hi(rs);const d=$('#dim');if(d){d.value=dim;d.onchange=()=>{dim=d.value;render()}}}
-$('#f').onchange=e=>{const f=e.target.files[0];if(f){const r=new FileReader();r.onload=()=>load(r.result);r.readAsText(f)}};
+function render(){if(!ALL.length)return;const rs=R();$('#out').innerHTML=tab=='cmp'?cmp(rs):tab=='sch'?sch(rs):tab=='seg'?seg(rs):hi(rs);tabBadge(rs);const d=$('#dim');if(d){d.value=dim;d.onchange=()=>{dim=d.value;render()}}}
 ['basis','unit','cat','q','sus'].forEach(i=>$('#'+i).addEventListener(i=='q'?'input':'change',render));
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x==b));render()});
 const tip=document.createElement('div');tip.id='tip';document.body.appendChild(tip);
 function showTip(e){const t=e.target.closest('[data-c]');if(!t){tip.style.display='none';return}tip.textContent=t.dataset.c;tip.style.display='block';const r=t.getBoundingClientRect();tip.style.left=Math.max(6,Math.min(r.left,innerWidth-tip.offsetWidth-6))+'px';tip.style.top=(r.bottom+tip.offsetHeight+8>innerHeight?r.top-tip.offsetHeight-4:r.bottom+4)+'px'}
 document.addEventListener('mouseover',showTip);document.addEventListener('click',showTip);
-const API_URL='https://script.google.com/macros/s/AKfycbwybcLy3hbggfIsPQ8nTlLwDKV8_qLLW4BtQz_rhJPXIKhz3JZUZ0_BpoXnH5vP75xEZA/exec';  // optional: hard-code your Apps Script web app URL (…/exec) when hosting this file
 let VER='',timer=null;
-const apiUrl=a=>{const u=new URL($('#api').value.trim());if(a)u.searchParams.set('action',a);return u.toString()};
-async function pull(force){const st=$('#st');if(!$('#api').value.trim()){st.textContent='Enter the Apps Script URL';return}
-try{if(!force&&VER){const v=await(await fetch(apiUrl('version'))).json();if(v.error)throw new Error(v.error);if(v.version===VER){st.textContent='Up to date · checked '+new Date().toLocaleTimeString();return}}
+const apiUrl=a=>{const u=new URL(API_URL);if(a)u.searchParams.set('action',a);return u.toString()};
+async function pull(force){const st=$('#st');if(!API_URL||/^PASTE/.test(API_URL)){st.textContent='Set API_URL at the top of the script (Apps Script web app URL).';return}
+try{if(!force&&VER){const v=await(await fetch(apiUrl('version'))).json();if(v.error)throw new Error(v.error);if(v.version===VER){render();st.textContent='Up to date · checked '+new Date().toLocaleTimeString();return}}
 const d=await(await fetch(apiUrl())).json();if(d.error)throw new Error(d.error);
-const c=$('#cat').value,b=$('#basis').value;VER=d.version;loadTable([d.headers,...d.rows]);if([...$('#cat').options].some(o=>o.value==c))$('#cat').value=c;if(PC.length&&+b<PC.length&&b!=='')$('#basis').value=b;render();
+const c=$('#cat').value,b=$('#basis').value;VER=d.version;loadTable([d.headers,...d.rows],d.changes);if([...$('#cat').options].some(o=>o.value==c))$('#cat').value=c;if(PC.length&&+b<PC.length&&b!=='')$('#basis').value=b;render();
 st.textContent='Live data · '+ALL.length+' products · updated '+new Date().toLocaleTimeString()}catch(e){st.textContent='API error: '+e.message}}
-function connect(){try{localStorage.setItem('fosApi',$('#api').value.trim())}catch(e){}VER='';pull(true);clearInterval(timer);timer=setInterval(()=>pull(false),60000)}
-$('#go').onclick=connect;$('#rf').onclick=()=>pull(true);
-try{const sv=API_URL||localStorage.getItem('fosApi');if(sv){$('#api').value=sv;connect()}}catch(e){if(API_URL){$('#api').value=API_URL;connect()}}
+$('#rf').onclick=()=>pull(true);pull(true);setInterval(()=>pull(false),60000);
 </script></body></html>
