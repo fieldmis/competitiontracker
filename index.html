@@ -26,6 +26,7 @@ details{margin-bottom:16px}summary{font-size:17px;font-weight:700;cursor:pointer
 .tag.fl{outline:none;background:var(--a);color:var(--at)}.cap{white-space:pre-line;font-size:12px;color:var(--mut);margin-top:2px}.upd{font-size:11px;color:var(--at);font-weight:600}
 .tabs button.flash{animation:flash 1.1s infinite;outline:2px solid #e4a400}
 @media(prefers-reduced-motion:reduce){.fl,.tabs button.flash{animation:none}}
+.ct{margin:16px 0 4px;font-size:14px}.ct span{color:var(--mut);margin-left:6px}
 </style></head><body>
 <h1>Shell Competition Price Benchmarking</h1>
 <div class="bar"><button id="rf">Refresh</button><small id="st"></small></div>
@@ -40,7 +41,7 @@ details{margin-bottom:16px}summary{font-size:17px;font-weight:700;cursor:pointer
 <div id="info"></div>
 <div id="out"><div class="empty">Loading live data…</div></div>
 <script>
-const API_URL='https://script.google.com/macros/s/AKfycbxlqOV0HndzVjrTFE5S0BvLpm6M0QB_3Mhuet0vegjzkpeqbcM1Ao3tltmi0NadtSMS1w/exec';  // <- paste your Apps Script web app URL (…/exec) here
+const API_URL='https://script.google.com/macros/s/AKfycbwybcLy3hbggfIsPQ8nTlLwDKV8_qLLW4BtQz_rhJPXIKhz3JZUZ0_BpoXnH5vP75xEZA/exec';  // <- paste your Apps Script web app URL (…/exec) here
 const $=s=>document.querySelector(s);let CH={},CAPMAP={},SPC=false,ALL=[],CAP={},FL=[],PC=[],tab='cmp',dim='c';
 const ORD=['PCMO','MCO','CVO','AGRI','AUTO 3 WHEELER'];
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -82,7 +83,7 @@ const isNew=(r,h)=>{const t=CH[r.k+'|'+nz(h)];return t&&Date.now()-t<1728e5?t:0}
 const ago=t=>{const m=Math.max(1,Math.round((Date.now()-t)/6e4));return m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'};
 const TRF=()=>FL.filter(f=>/scheme|booster|offer|mlp/i.test(f.h));
 function tabBadge(rs){const T=TRF(),n=rs.filter(r=>r.b!='Shell'&&T.some(f=>isNew(r,f.h))).length,b=$('#tb-sch');b.classList.toggle('flash',n>0);b.innerHTML='Schemes &amp; Additional Offers'+(n?` <span class="tag fl">${n} updated</span>`:'')}
-function blk(s,cr){const cs=[s,...cr],dc=(r,h)=>(r.cm[h]?` data-c="${esc(r.cm[h])}"`:'')+(isNew(r,h)?' class="fl"':'');
+function blk(s,cr,miss){const cs=[s,...cr],dc=(r,h)=>(r.cm[h]?` data-c="${esc(r.cm[h])}"`:'')+(isNew(r,h)?' class="fl"':'');
 const th=cs.map(r=>`<th${r.cm['Product Name']?` data-c="${esc(r.cm['Product Name'])}"`:''}><small>${esc(r.b)}</small><br>${esc(r.n)}</th>`).join('');
 const rows=[];
 for(const f of FL){const pk=/pack size/i.test(f.h),vs=cs.map(r=>/viscosity/i.test(f.h)?r.v:(r.raw[f.h]||''));
@@ -90,20 +91,20 @@ if(!vs.some(x=>x)&&!cs.some(r=>r.cm[f.h]))continue;
 rows.push(`<tr><th class="rh">${esc(f.h)}</th>${cs.map((r,i)=>`<td${dc(r,f.h)}>${esc(vs[i]||'—')}${pk&&i&&r.p!=s.p?' <small class="muted">(≠ Shell pack)</small>':''}</td>`).join('')}</tr>`)}
 if(s.ppl!=null&&cr.some(r=>r.ppl!=null)){const bl=PC[+$('#basis').value].h;
 rows.push(`<tr><th class="rh">Price difference vs Shell (₹/Ltr)<br><small>${esc(bl)}</small></th>${cs.map((r,i)=>{if(r.ppl==null)return'<td class="muted">—</td>';if(!i)return'<td class="muted">Base (Shell)</td>';const d=r.ppl-s.ppl;return`<td class="${dcol(d)}" title="${fm(r.ppl)}/L vs Shell ${fm(s.ppl)}/L"><b>${d>0?'+':d<0?'−':''}₹${Math.abs(d).toFixed(1)}/L</b></td>`}).join('')}</tr>`)}
-return`<div class="wrap blk"><table><tr><th class="rh">Field</th>${th}</tr>${rows.join('')}</table></div>`+(cr.length?'':`<p class="muted">No competition product mapped yet – put “${esc(s.n)}” in the Shell Products column of the competitor’s row.</p>`)}
-function cmp(rs){const cat=$('#cat').value,q=$('#q').value.toLowerCase(),shell=rs.filter(r=>r.b=='Shell'),G={},sv={},ss={};
-rs.filter(r=>r.b!='Shell').forEach(r=>{const k=r.b+'|'+r.n,g=G[k]=G[k]||{rows:[],maps:new Set()};g.rows.push(r);r.sp.forEach(m=>g.maps.add(m))});
-shell.forEach(s=>{sv[s.n]=s.v;ss[s.n]=s.c});const SN=Object.keys(sv),links={};
-Object.values(G).forEach(g=>{const r0=g.rows[0];
-if(SPC)g.maps.forEach(m=>{const z=nz(m);if(!z)return;let ms=SN.filter(x=>nz(x).includes(z));const same=ms.filter(x=>sv[x]==r0.v);if(same.length)ms=same;ms.forEach(x=>(links[x]=links[x]||new Set()).add(g))});
-else SN.forEach(x=>{if(ss[x]==r0.c&&sv[x]==r0.v)(links[x]=links[x]||new Set()).add(g)})});
+return`<div class="ct"><b>${esc(s.n)}</b> <span>${s.p} L pack</span></div><div class="wrap blk"><table><tr><th class="rh">Field</th>${th}</tr>${rows.join('')}</table></div>`+(!cr.length?`<p class="muted">${miss.length?'No mapped competition product has a '+s.p+' L pack yet.':'No competition product mapped yet – put “'+esc(s.n)+'” in the Shell Products column of the competitor’s row.'}</p>`:'')+(cr.length&&miss.length?`<p class="muted">No ${s.p} L pack for: ${miss.map(esc).join(' · ')}</p>`:'')}
+const strip=n=>n.replace(/\b\d+\s*[x\/]\s*\d+(\.\d+)?\s*(ltrs?|lt|l)?\b/ig,' ').replace(/\b\d+(\.\d+)?\s*(ltrs?|lt|l)\b/ig,' ').replace(/\s+,/g,',').replace(/,\s*,/g,',').replace(/\s{2,}/g,' ').replace(/^[\s,.\-]+|[\s,.\-]+$/g,'');
+function cmp(rs){const cat=$('#cat').value,q=$('#q').value.toLowerCase(),shell=rs.filter(r=>r.b=='Shell'),sv={},ss={},links={};
+shell.forEach(s=>{sv[s.n]=s.v;ss[s.n]=s.c});const SN=Object.keys(sv),add=(x,r)=>(links[x]=links[x]||new Set()).add(r);
+rs.filter(r=>r.b!='Shell').forEach(r=>{
+if(SPC)new Set(r.sp).forEach(m=>{const z=nz(m);if(!z)return;let ms=SN.filter(x=>nz(x).includes(z));const same=ms.filter(x=>sv[x]==r.v);if(same.length)ms=same;ms.forEach(x=>add(x,r))});
+else SN.forEach(x=>{if(ss[x]==r.c&&sv[x]==r.v)add(x,r)})});
 const all=[...new Set(shell.map(s=>s.c))].sort((x,y)=>ORD.indexOf(x)-ORD.indexOf(y)),P=Rp(rs);
 let h=`<p class="leg"><span class="g">Competitor price higher than Shell (+₹/Ltr)</span><span class="a">Same as Shell</span><span class="r">Competitor price lower than Shell (−₹/Ltr)</span><small>Orange corner = comment from a Caption column – hover or tap.</small></p>`;
 for(const c of all.filter(c=>!cat||c==cat)){
 const sh=shell.filter(r=>r.c==c&&(r.n+' '+r.v+' '+r.p).toLowerCase().includes(q)).sort((x,y)=>x.n.localeCompare(y.n)||x.p-y.p);if(!sh.length)continue;
 const st=stats(P.filter(r=>r.c==c)),sa=stats(P.filter(r=>r.c==c&&r.b=='Shell'));
 h+=`<details open><summary>${esc(c)} <small>${sh.length} Shell SKUs</small></summary>${st?`<p class="chips"><span class="r">Cheapest: ${fm(st.lo.ppl)}/L · ${esc(desc(st.lo))}</span><span class="g">Costliest: ${fm(st.hi.ppl)}/L · ${esc(desc(st.hi))}</span>${sa?`<span class="a">Shell avg: ${fm(sa.avg)}/L</span>`:''}</p>`:''}`+
-sh.map(s=>blk(s,[...(links[s.n]||[])].sort((x,y)=>x.rows[0].b.localeCompare(y.rows[0].b)||x.rows[0].n.localeCompare(y.rows[0].n)).map(g=>[...g.rows].sort((x,y)=>Math.abs(x.p-s.p)-Math.abs(y.p-s.p))[0]))).join('')+'</details>'}
+sh.map(s=>{const al=[...(links[s.n]||[])],hit=al.filter(r=>Math.abs(r.p-s.p)<1e-6).sort((x,y)=>x.b.localeCompare(y.b)||x.n.localeCompare(y.n)),kk=r=>r.b+'|'+strip(r.n).toLowerCase(),hb=new Set(hit.map(kk)),miss=[...new Map(al.filter(r=>!hb.has(kk(r))).map(r=>[kk(r),r.b+' '+strip(r.n)])).values()];return blk(s,hit,miss)}).join('')+'</details>'}
 return h}
 function sch(rs){const q=$('#q').value.toLowerCase(),cat=$('#cat').value,T=TRF();
 if(!T.length)return'<div class="empty">No scheme / booster / MLP columns found in the sheet.</div>';
