@@ -29,21 +29,25 @@ details{margin-bottom:16px}summary{font-size:17px;font-weight:700;cursor:pointer
 .ct{margin:16px 0 4px;font-size:14px}.ct span{color:var(--mut);margin-left:6px}
 .blk table{table-layout:fixed}.blk th,.blk td{word-break:break-word;min-width:0}.blk th.rh{min-width:0}
 .na{background:var(--card);color:var(--mut);text-align:center;vertical-align:middle!important;font-style:italic}
+.stabs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.stabs button.on{background:var(--y);color:#222;border-color:var(--y);font-weight:600}.stabs button.on small{color:#222}
+td.cap{white-space:pre-line;font-size:13px;color:var(--fg)}
 </style></head><body>
 <h1>Shell Competition Price Benchmarking</h1>
 <div class="bar"><button id="rf">Refresh</button><button id="xl">⬇ Download Excel report</button><small id="st"></small></div>
-<div class="bar"><select id="cat"></select><input id="q" placeholder="Search Shell SKU / API / viscosity…"></div>
+<div class="bar"><input id="q" placeholder="Search Shell SKU / API / viscosity…"></div>
 <div class="bar tabs"><button data-t="cmp" class="on">Segment view</button><button data-t="sch" id="tb-sch">Schemes &amp; Additional Offers</button><button data-t="seg">Segment summary</button><button data-t="hi">Cheapest &amp; costliest</button></div>
 <div id="info"></div>
 <div id="out"><div class="empty">Loading live data…</div></div>
 <script>
 const API_URL='https://script.google.com/macros/s/AKfycbwybcLy3hbggfIsPQ8nTlLwDKV8_qLLW4BtQz_rhJPXIKhz3JZUZ0_BpoXnH5vP75xEZA/exec';  // Apps Script web app URL (…/exec)
-const $=s=>document.querySelector(s);let CH={},CAPMAP={},SPC=false,ALL=[],CAP={},FL=[],PC=[],tab='cmp',dim='c';
+const $=s=>document.querySelector(s);let SEG='',CH={},CAPMAP={},SPC=false,ALL=[],CAP={},FL=[],PC=[],tab='cmp',dim='c';
 const ORD=['PCMO','MCO','CVO','AGRI','AUTO 3 WHEELER'];
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num=v=>{v=parseFloat(String(v||'').replace(/[₹,\s]/g,''));return isNaN(v)?null:v};
 const fm=n=>n==null?'–':'₹'+Math.round(n).toLocaleString('en-IN');
 const nz=s=>String(s).toLowerCase().replace(/[^a-z0-9]/g,'');
+const PK=/^(\d+(?:\.\d+)?)\s*(?:l|ltr|ltrs|lt|litre|litres)?$/i;
+function parseSP(v){const o=[];(v||'').split(/[;|\n\/]+/).forEach(g=>{let cur=null;g.split(',').map(x=>x.trim()).filter(Boolean).forEach(t=>{const m=t.match(PK);if(m&&cur)cur.packs.push(parseFloat(m[1]));else{cur={n:t,z:nz(t),packs:[]};o.push(cur)}})});return o}
 function parseCSV(t){const o=[];let r=[],f='',q=false;for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c=='"'){if(t[i+1]=='"'){f+='"';i++}else q=false}else f+=c}else if(c=='"')q=true;else if(c==','){r.push(f);f=''}else if(c=='\n'||c=='\r'){if(c=='\r'&&t[i+1]=='\n')i++;r.push(f);f='';o.push(r);r=[]}else f+=c}if(f||r.length){r.push(f);o.push(r)}return o}
 function visc(n,c){c=(c||'').toUpperCase().trim();let k=c.match(/^(\d{1,2})W-?(\d{2,3})$/);if(k)return k[1]+'W-'+k[2];if(/^\d{2,3}W$/.test(c)||/^(SAE|2T)/.test(c))return c;const m=(n+' ').match(/(\d{1,2})W-?(\d{2})/i);return m?m[1]+'W-'+m[2]:'N/A'}
 function api(s){s=(s||'').toUpperCase();let m=s.match(/C[A-K]-4(\s?PLUS|\+)?/);if(m)return m[0].replace(/\s?PLUS/,'+').replace(/\s/g,'');m=s.match(/\bS[A-Q]\b/);if(m)return m[0];m=s.match(/GL-\d/);return m?m[0]:'N/A'}
@@ -66,9 +70,9 @@ for(const r of t.slice(1)){const b=(r[I.b]||'').trim();if(!b)continue;const n=(r
 FL.forEach(f=>raw[f.h]=(r[f.i]||'').trim());PC.forEach(f=>pr[f.h]=num(r[f.i]));
 const k=[b,n,p,JSON.stringify(pr)].join('|');if(seen.has(k))continue;seen.add(k);
 Object.keys(CAP).forEach(i=>{const x=(r[i]||'').trim();if(!x)return;const g=FL.find(f=>nz(f.h)==CAP[i])||FL.find(f=>nz(f.h).startsWith(CAP[i]))||FL.find(f=>nz(f.h).includes(CAP[i])),key=g?g.h:'Product Name';cm[key]=cm[key]?cm[key]+'\n'+x:x});
-const ap=I.a>=0?r[I.a]:'';ALL.push({k:[b,n,(r[I.p]||'').trim()].join('|').toLowerCase(),sp:b=='Shell'||I.s<0?[]:(r[I.s]||'').split(/[;,\n|\/]+/).map(x=>x.trim()).filter(Boolean),b,n,p,c:I.c>=0&&(r[I.c]||'').trim()?r[I.c].trim().toUpperCase():segOf(n,ap,p,b),v:visc(n,I.v>=0?r[I.v]:''),a:ap,ak:api(ap),t:I.t>=0?(r[I.t]||'').trim():'',raw,cm,pr})}
+const ap=I.a>=0?r[I.a]:'';ALL.push({k:[b,n,(r[I.p]||'').trim()].join('|').toLowerCase(),sp:b=='Shell'||I.s<0?[]:parseSP(r[I.s]),b,n,p,c:I.c>=0&&(r[I.c]||'').trim()?r[I.c].trim().toUpperCase():segOf(n,ap,p,b),v:visc(n,I.v>=0?r[I.v]:''),a:ap,ak:api(ap),t:I.t>=0?(r[I.t]||'').trim():'',raw,cm,pr})}
 const has=PC.findIndex(f=>ALL.some(r=>r.pr[f.h]!=null));
-const cs=[...new Set(ALL.map(r=>r.c))].sort((x,y)=>ORD.indexOf(x)-ORD.indexOf(y));$('#cat').innerHTML='<option value="">All segments</option>'+cs.map(c=>`<option>${esc(c)}</option>`).join('');
+
 $('#info').innerHTML=`<div class="note">${ALL.length} products loaded. ${I.c<0?'The sheet has no Category column, so segments are assigned from product name / API / pack size. Add a “Category” column for exact grouping. ':''}${SPC?'':'No “Shell Products” column found, so competition products are auto-matched by segment and viscosity. '}${has<0?'No price values found yet in '+(PC.map(f=>esc(f.h)).join(', ')||'any price column')+', so the ₹/L comparison, summary and cheapest / costliest views stay empty until prices are filled.':''}</div>`;(changes||[]).forEach(c=>{const h=CAPMAP[nz(c.f)]||c.f,k=c.k+'|'+nz(h),t=Date.parse(c.t);if(t&&(!CH[k]||t>CH[k]))CH[k]=t});render()}
 const BASIS=()=>PC.find(f=>/net rbp/i.test(f.h))||PC.find(f=>ALL.some(r=>r.pr[f.h]!=null))||PC[0];
 function R(){const f=BASIS();return ALL.map(r=>{const v=f?r.pr[f.h]:null;return{...r,ppl:v&&r.p?v/r.p:null}})}
@@ -79,73 +83,69 @@ const desc=r=>`${r.b} · ${r.n} · ${r.p}L`;
 const isNew=(r,h)=>{const t=CH[r.k+'|'+nz(h)];return t&&Date.now()-t<1728e5?t:0};
 const ago=t=>{const m=Math.max(1,Math.round((Date.now()-t)/6e4));return m<60?m+' min ago':m<1440?Math.round(m/60)+' h ago':Math.round(m/1440)+' d ago'};
 const TRF=()=>FL.filter(f=>/scheme|booster|offer|mlp/i.test(f.h));
-function tabBadge(rs){const T=TRF(),n=rs.filter(r=>r.b!='Shell'&&T.some(f=>isNew(r,f.h))).length,b=$('#tb-sch');b.classList.toggle('flash',n>0);b.innerHTML='Schemes &amp; Additional Offers'+(n?` <span class="tag fl">${n} updated</span>`:'')}
-function model(rs){const cat=$('#cat').value,q=$('#q').value.toLowerCase(),shell=rs.filter(r=>r.b=='Shell'),BR=[...new Set(rs.filter(r=>r.b!='Shell').map(r=>r.b))],sv={},ss={},links={};
-shell.forEach(s=>{sv[s.n]=s.v;ss[s.n]=s.c});const SN=Object.keys(sv),add=(x,r)=>(links[x]=links[x]||new Set()).add(r);
+function tabBadge(rs){const T=TRF(),n=new Set(rs.filter(r=>T.some(f=>isNew(r,f.h))).map(r=>r.b+'|'+r.n)).size,b=$('#tb-sch');b.classList.toggle('flash',n>0);b.innerHTML='Schemes &amp; Additional Offers'+(n?` <span class="tag fl">${n} updated</span>`:'')}
+function model(rs){const q=$('#q').value.toLowerCase(),shell=rs.filter(r=>r.b=='Shell'),BR=[...new Set(rs.filter(r=>r.b!='Shell').map(r=>r.b))],sv={},ss={},links={};
+shell.forEach(s=>{sv[s.n]=s.v;ss[s.n]=s.c});const SN=Object.keys(sv),add=(x,r,pk)=>(links[x]=links[x]||[]).push({r,pk});
 rs.filter(r=>r.b!='Shell').forEach(r=>{
-if(SPC)new Set(r.sp).forEach(m=>{const z=nz(m);if(!z)return;let ms=SN.filter(x=>nz(x).includes(z));const same=ms.filter(x=>sv[x]==r.v);if(same.length)ms=same;ms.forEach(x=>add(x,r))});
-else SN.forEach(x=>{if(ss[x]==r.c&&sv[x]==r.v)add(x,r)})});
-const segs=[];for(const c of[...new Set(shell.map(s=>s.c))].sort((x,y)=>ORD.indexOf(x)-ORD.indexOf(y)).filter(c=>!cat||c==cat)){
+if(SPC)r.sp.forEach(e=>{if(!e.z)return;let ms=SN.filter(x=>nz(x).includes(e.z));const same=ms.filter(x=>sv[x]==r.v);if(same.length)ms=same;ms.forEach(x=>add(x,r,e.packs))});
+else SN.forEach(x=>{if(ss[x]==r.c&&sv[x]==r.v)add(x,r,[])})});
+const segs=[];for(const c of[...new Set(shell.map(s=>s.c))].sort((x,y)=>ORD.indexOf(x)-ORD.indexOf(y))){
 const sh=shell.filter(r=>r.c==c&&(r.n+' '+r.v+' '+r.a+' '+r.p).toLowerCase().includes(q)).sort((x,y)=>x.n.localeCompare(y.n)||x.p-y.p);if(!sh.length)continue;
-segs.push({c,cards:sh.map(s=>{const al=[...(links[s.n]||[])].filter(r=>Math.abs(r.p-s.p)<1e-6);
+segs.push({c,cards:sh.map(s=>{const al=[...new Set((links[s.n]||[]).filter(o=>o.pk.length?o.pk.some(k=>Math.abs(k-s.p)<1e-6):Math.abs(o.r.p-s.p)<1e-6).map(o=>o.r))];
 return{s,cols:BR.map(b=>{const m=al.filter(r=>r.b==b).sort((x,y)=>(x.ak==s.ak?0:1)-(y.ak==s.ak?0:1)||(x.t==s.t?0:1)-(y.t==s.t?0:1));return{b,r:m[0]||null,more:m.slice(1)}})}})})}
 return{BR,segs}}
 function grid(c){const s=c.s,cs=[s,...c.cols.map(x=>x.r)],rows=[],bl=BASIS();
 FL.forEach(f=>{const vs=cs.map(r=>r?(/viscosity/i.test(f.h)?r.v:(r.raw[f.h]||'')):'');if(!vs.some(x=>x)&&!cs.some(r=>r&&r.cm[f.h]))return;
-rows.push({label:f.h,cells:cs.map((r,i)=>r?{t:vs[i]||'—',cm:r.cm[f.h]||'',fl:isNew(r,f.h)>0}:null)})});
+rows.push({label:f.h,cells:cs.map((r,i)=>r?{t:(vs[i]||'—')+(/pack size/i.test(f.h)&&i&&r.p!=s.p?' (≠ Shell)':''),cm:r.cm[f.h]||'',fl:isNew(r,f.h)>0}:null)})});
 if(s.ppl!=null&&c.cols.some(x=>x.r&&x.r.ppl!=null))rows.push({label:'Price difference vs Shell (₹/Ltr)',sub:bl?bl.h:'',cells:cs.map((r,i)=>{if(!r)return null;if(!i)return{t:'Base (Shell)',cls:'muted'};if(r.ppl==null)return{t:'—'};const d=r.ppl-s.ppl;return{t:(d>0?'+':d<0?'−':'')+'₹'+Math.abs(d).toFixed(1)+'/L',cls:dcol(d),title:`${fm(r.ppl)}/L vs Shell ${fm(s.ppl)}/L`}})});
 return{head:cs.map((r,i)=>({b:i?c.cols[i-1].b:'Shell',n:r?r.n:'',cm:r?r.cm['Product Name']||'':''})),rows}}
 function blk(c){const g=grid(c),s=c.s,N=g.head.length+1,w=(100/N).toFixed(3),R=g.rows.length;
 const th=g.head.map(h=>h.n?`<th${h.cm?` data-c="${esc(h.cm)}"`:''}><small>${esc(h.b)}</small><br>${esc(h.n)}</th>`:`<th class="na"><small>${esc(h.b)}</small><br>Not Available</th>`).join('');
-const body=g.rows.map((r,ri)=>`<tr><th class="rh">${esc(r.label)}${r.sub?`<br><small>${esc(r.sub)}</small>`:''}</th>${r.cells.map(x=>x?`<td class="${x.cls||''}${x.fl?' fl':''}"${x.cm?` data-c="${esc(x.cm)}"`:''}${x.title?` title="${esc(x.title)}"`:''}>${/^[gra]$/.test(x.cls||'')?`<b>${esc(x.t)}</b>`:esc(x.t)}</td>`:ri?'':`<td class="na" rowspan="${R}">Not Available</td>`).join('')}</tr>`).join('');
+const body=g.rows.map((r,ri)=>`<tr><th class="rh">${esc(r.label)}${r.sub?`<br><small>${esc(r.sub)}</small>`:''}</th>${r.cells.map(x=>x?`<td class="${x.cls||''}${x.fl?' fl':''}"${x.cm?` data-c="${esc(x.cm)}"`:''}${x.title?` title="${esc(x.title)}"`:''}>${/^[gra]$/.test(x.cls||'')?`<b>${esc(x.t)}</b>`:esc(x.t)}</td>`:'<td class="na"></td>').join('')}</tr>`).join('');
 const more=c.cols.filter(x=>x.more.length).map(x=>`${esc(x.b)}: ${x.more.map(m=>esc(m.n)).join(', ')}`);
-return`<div class="ct"><b>${esc(s.n)}</b> <span>${s.p} L pack</span></div><div class="wrap blk"><table style="min-width:${N*130}px"><colgroup>${('<col style="width:'+w+'%">').repeat(N)}</colgroup><tr><th class="rh">Field</th>${th}</tr>${body}</table></div>`+(more.length?`<p class="muted">Also mapped for this pack (not shown): ${more.join(' · ')}</p>`:'')}
-function cmp(rs){const M=model(rs),P=Rp(rs);
-let h=`<p class="leg"><span class="g">Competitor price higher than Shell (+₹/Ltr)</span><span class="a">Same as Shell</span><span class="r">Competitor price lower than Shell (−₹/Ltr)</span><small>Orange corner = comment from a Caption column – hover or tap. Each card compares the same pack size only.</small></p>`;
-for(const sg of M.segs){const st=stats(P.filter(r=>r.c==sg.c)),sa=stats(P.filter(r=>r.c==sg.c&&r.b=='Shell'));
-h+=`<details open><summary>${esc(sg.c)} <small>${sg.cards.length} Shell SKUs</small></summary>${st?`<p class="chips"><span class="r">Cheapest: ${fm(st.lo.ppl)}/L · ${esc(desc(st.lo))}</span><span class="g">Costliest: ${fm(st.hi.ppl)}/L · ${esc(desc(st.hi))}</span>${sa?`<span class="a">Shell avg: ${fm(sa.avg)}/L</span>`:''}</p>`:''}`+sg.cards.map(blk).join('')+'</details>'}
-return h||'<div class="empty">No Shell SKUs match.</div>'}
-function sch(rs){const q=$('#q').value.toLowerCase(),cat=$('#cat').value,T=TRF();
+return`<div class="ct"><b>${esc(s.n)}</b> <span>${s.p} L pack</span></div><div class="wrap blk"><table style="min-width:${N*130}px"><colgroup>${('<col style="width:'+w+'%">').repeat(N)}</colgroup><tr><th class="rh">Brand</th>${th}</tr>${body}</table></div>`+(more.length?`<p class="muted">Also mapped for this pack (not shown): ${more.join(' · ')}</p>`:'')}
+function setSeg(g){SEG=g;render()}
+function cmp(rs){const M=model(rs),P=Rp(rs);if(!M.segs.length)return'<div class="empty">No Shell SKUs match.</div>';
+if(!M.segs.some(g=>g.c==SEG))SEG=M.segs[0].c;const sg=M.segs.find(g=>g.c==SEG),st=stats(P.filter(r=>r.c==sg.c)),sa=stats(P.filter(r=>r.c==sg.c&&r.b=='Shell'));
+return`<div class="stabs">${M.segs.map(g=>`<button class="${g.c==SEG?'on':''}" data-s="${esc(g.c)}" onclick="setSeg(this.dataset.s)">${esc(g.c)} <small>${g.cards.length}</small></button>`).join('')}</div>
+<p class="leg"><span class="g">Competitor price higher than Shell (+₹/Ltr)</span><span class="a">Same as Shell</span><span class="r">Competitor price lower than Shell (−₹/Ltr)</span><small>Orange corner = comment from a Caption column. Same pack size is compared, unless a pack is given after the comma in Shell Products.</small></p>`+
+(st?`<p class="chips"><span class="r">Cheapest: ${fm(st.lo.ppl)}/L · ${esc(desc(st.lo))}</span><span class="g">Costliest: ${fm(st.hi.ppl)}/L · ${esc(desc(st.hi))}</span>${sa?`<span class="a">Shell avg: ${fm(sa.avg)}/L</span>`:''}</p>`:'')+sg.cards.map(blk).join('')}
+function sch(rs){const q=$('#q').value.toLowerCase(),T=TRF();
 if(!T.length)return'<div class="empty">No scheme / booster / MLP columns found in the sheet.</div>';
-const rows=rs.filter(r=>r.b!='Shell'&&(!cat||r.c==cat)&&(r.b+' '+r.n).toLowerCase().includes(q)&&T.some(f=>r.raw[f.h]||r.cm[f.h]));
-if(!rows.length)return'<div class="empty">No schemes, additional offers or MLP entered for competition products yet.</div>';
-const nw=r=>Math.max(0,...T.map(f=>isNew(r,f.h)));
-let h='<p class="leg"><span class="fl">Flashing = updated in the last 48 hours</span><small>Captions are shown under each value.</small></p>';
-for(const b of[...new Set(rows.map(r=>r.b))].sort()){const br=rows.filter(r=>r.b==b),n=br.filter(r=>nw(r)).length;
-h+=`<details open><summary>${esc(b)} <small>${br.length} SKUs</small>${n?` <span class="tag fl">${n} updated</span>`:''}</summary>`;
-for(const c of[...new Set(br.map(r=>r.c))].sort((x,y)=>ORD.indexOf(x)-ORD.indexOf(y))){
-const cr=br.filter(r=>r.c==c).sort((x,y)=>nw(y)-nw(x)||x.n.localeCompare(y.n)||x.p-y.p);
-h+=`<h3>${esc(c)}</h3><div class="wrap"><table><tr><th>Product</th><th class="n">Pack</th>${T.map(f=>`<th>${esc(f.h)}</th>`).join('')}</tr>${cr.map(r=>`<tr><td>${esc(r.n)}</td><td class="n">${r.p??''}</td>${T.map(f=>{const v=r.raw[f.h],cm=r.cm[f.h],t=isNew(r,f.h);return`<td${t?' class="fl"':''}>${v?`<b>${esc(v)}</b>`:'<span class="muted">—</span>'}${cm?`<div class="cap">${esc(cm)}</div>`:''}${t?`<div class="upd">Updated ${ago(t)}</div>`:''}</td>`}).join('')}</tr>`).join('')}</table></div>`}
-h+='</details>'}
-return h}
+const BRS=['Shell',...new Set(rs.filter(r=>r.b!='Shell').map(r=>r.b))];
+let h='<p class="leg"><span class="fl">Flashing = updated in the last 48 hours</span><small>Grouped by offer – products with the same offer and caption are combined. Shell is included.</small></p>',any=false;
+for(const f of T){const G={};rs.filter(r=>(r.raw[f.h]||r.cm[f.h])&&(r.b+' '+r.n).toLowerCase().includes(q)).forEach(r=>{const v=r.raw[f.h]||'',cm=r.cm[f.h]||'',k=[r.b,r.c,v,cm].join('\u0001');(G[k]=G[k]||{b:r.b,c:r.c,v,cm,rows:[]}).rows.push(r)});
+const gs=Object.values(G).sort((x,y)=>BRS.indexOf(x.b)-BRS.indexOf(y.b)||ORD.indexOf(x.c)-ORD.indexOf(y.c));if(!gs.length)continue;any=true;
+h+=`<h3>${esc(f.h)} <small>${gs.length} offers</small></h3><div class="wrap"><table><tr><th>Brand</th><th>Segment</th><th>Offer</th><th>Details / caption</th><th>Applicable products (pack, L)</th></tr>${gs.map(g=>{const t=Math.max(0,...g.rows.map(r=>isNew(r,f.h))),by={};g.rows.forEach(r=>(by[r.n]=by[r.n]||[]).push(r.p));
+return`<tr><td><b>${esc(g.b)}</b>${g.b=='Shell'?' <span class="tag a">Shell</span>':''}</td><td>${esc(g.c)}</td><td${t?' class="fl"':''}>${g.v?`<b>${esc(g.v)}</b>`:'<span class="muted">—</span>'}${t?`<div class="upd">Updated ${ago(t)}</div>`:''}</td><td class="cap">${g.cm?esc(g.cm):'—'}</td><td>${Object.keys(by).sort().map(n=>`<div>${esc(n)} <small>${[...new Set(by[n])].sort((a,b)=>a-b).join(', ')}</small></div>`).join('')}</td></tr>`}).join('')}</table></div>`}
+return any?h:'<div class="empty">No schemes, additional offers or MLP entered yet.</div>'}
 const NOP='<div class="empty">No price values in the selected price column yet.</div>';
-function seg(rs){const P=Rp(rs);if(!P.length)return NOP;const bs=[...new Set(P.map(r=>r.b))].sort(),cats=[...new Set(P.map(r=>r.c))].sort((x,y)=>ORD.indexOf(x)-ORD.indexOf(y)),sel=$('#cat').value;let h='';
+function seg(rs){const P=Rp(rs);if(!P.length)return NOP;const bs=[...new Set(P.map(r=>r.b))].sort(),cats=[...new Set(P.map(r=>r.c))].sort((x,y)=>ORD.indexOf(x)-ORD.indexOf(y)),sel='';let h='';
 for(const c of cats.filter(c=>!sel||c==sel)){const sr=stats(P.filter(r=>r.b=='Shell'&&r.c==c));
 h+=`<h3>${esc(c)}</h3><div class="wrap"><table><tr><th>Brand</th><th class="n">SKUs</th><th class="n">Avg ₹/L</th><th class="n">Cheapest ₹/L</th><th class="n">Costliest ₹/L</th><th class="n">Brand avg vs Shell (₹/Ltr)</th></tr>`;
 for(const b of bs){const s=stats(P.filter(r=>r.b==b&&r.c==c));if(!s)continue;let d='';if(b=='Shell')d='<span class="tag a">Shell</span>';else if(sr){const p=s.avg-sr.avg;d=`<span class="${dcol(p)} tag">${p>0?'+':p<0?'−':''}₹${Math.abs(p).toFixed(1)}/L</span>`}
 h+=`<tr><td><b>${esc(b)}</b></td><td class="n">${s.n}</td><td class="n">${fm(s.avg)}</td><td class="n" title="${esc(desc(s.lo))}">${fm(s.lo.ppl)}</td><td class="n" title="${esc(desc(s.hi))}">${fm(s.hi.ppl)}</td><td class="n">${d}</td></tr>`}h+='</table></div>'}
 return`<p class="leg"><span class="g">Brand avg higher than Shell</span><span class="r">Brand avg lower than Shell</span></p>`+h}
-function hiData(rs){const P=Rp(rs),cat=$('#cat').value,q=$('#q').value.toLowerCase(),g={};
+function hiData(rs){const P=Rp(rs),cat='',q=$('#q').value.toLowerCase(),g={};
 P.filter(r=>(!cat||r.c==cat)&&r.p).forEach(r=>{const k=r.ak+'|'+r.v+'|'+r.p;(g[k]=g[k]||[]).push(r)});
 return Object.values(g).filter(a=>a.length>1&&(a[0].ak+' '+a[0].v+' '+a[0].p).toLowerCase().includes(q)).map(a=>{const s=stats(a),srt=[...a].sort((x,y)=>x.ppl-y.ppl),sh=srt.find(r=>r.b=='Shell');return{api:a[0].ak,v:a[0].v,p:a[0].p,n:a.length,lo:s.lo,hi:s.hi,shell:sh,rank:sh?srt.indexOf(sh)+1:0}}).sort((x,y)=>(!!y.shell)-(!!x.shell)||x.api.localeCompare(y.api)||x.v.localeCompare(y.v)||x.p-y.p)}
 function hi(rs){if(!Rp(rs).length)return NOP;const D=hiData(rs);if(!D.length)return'<div class="empty">No like-for-like combinations found.</div>';
 return`<p class="leg"><span class="r">Cheapest ₹/L</span><span class="g">Costliest ₹/L</span><small>Like-for-like: same API grade + viscosity grade + pack size. Combinations with a Shell SKU come first.</small></p><div class="wrap"><table><tr><th>API grade</th><th>Viscosity</th><th class="n">Pack (L)</th><th class="n">SKUs</th><th>Cheapest ₹/L</th><th>Costliest ₹/L</th><th>Shell ₹/L (best)</th></tr>${D.map(d=>`<tr><td><b>${esc(d.api)}</b></td><td>${esc(d.v)}</td><td class="n">${d.p}</td><td class="n">${d.n}</td><td class="r">${fm(d.lo.ppl)}/L<br><small>${esc(d.lo.b+' · '+d.lo.n)}</small></td><td class="g">${fm(d.hi.ppl)}/L<br><small>${esc(d.hi.b+' · '+d.hi.n)}</small></td><td class="a">${d.shell?`${fm(d.shell.ppl)}/L<br><small>Rank ${d.rank} of ${d.n} (1 = cheapest)</small>`:'<span class="muted">no Shell SKU</span>'}</td></tr>`).join('')}</table></div>`}
 function render(){if(!ALL.length)return;const rs=R();$('#out').innerHTML=tab=='cmp'?cmp(rs):tab=='sch'?sch(rs):tab=='seg'?seg(rs):hi(rs);tabBadge(rs);const d=$('#dim');if(d){d.value=dim;d.onchange=()=>{dim=d.value;render()}}}
-['cat','q'].forEach(i=>$('#'+i).addEventListener(i=='q'?'input':'change',render));
+['q'].forEach(i=>$('#'+i).addEventListener(i=='q'?'input':'change',render));
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x==b));render()});
 const tip=document.createElement('div');tip.id='tip';document.body.appendChild(tip);
 function showTip(e){const t=e.target.closest('[data-c]');if(!t){tip.style.display='none';return}tip.textContent=t.dataset.c;tip.style.display='block';const r=t.getBoundingClientRect();tip.style.left=Math.max(6,Math.min(r.left,innerWidth-tip.offsetWidth-6))+'px';tip.style.top=(r.bottom+tip.offsetHeight+8>innerHeight?r.top-tip.offsetHeight-4:r.bottom+4)+'px'}
 document.addEventListener('mouseover',showTip);document.addEventListener('click',showTip);
 const loadScript=u=>new Promise((ok,no)=>{const e=document.createElement('script');e.src=u;e.onload=ok;e.onerror=no;document.head.appendChild(e)});
 async function ensureXL(){if(window.ExcelJS)return;try{await loadScript('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js')}catch(e){await loadScript('https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js')}}
-function buildWb(rs){const M=model(rs),wb=new ExcelJS.Workbook(),ws=wb.addWorksheet('Price Benchmarking'),N=M.BR.length+2,ln={style:'thin',color:{argb:'FFD9D9DE'}},bd={top:ln,left:ln,bottom:ln,right:ln},fill=a=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+a}}),PAL={g:['D6F2DC','14532D'],r:['FBDCDC','7F1D1D'],a:['FFF1C2','664D03']};
-ws.columns=Array.from({length:N},()=>({width:26}));let row=1;
+function buildWb(rs){const M=model(rs),wb=new ExcelJS.Workbook(),N=M.BR.length+2,ln={style:'thin',color:{argb:'FFD9D9DE'}},bd={top:ln,left:ln,bottom:ln,right:ln},fill=a=>({type:'pattern',pattern:'solid',fgColor:{argb:'FF'+a}}),PAL={g:['D6F2DC','14532D'],r:['FBDCDC','7F1D1D'],a:['FFF1C2','664D03']};
+let ws,row=1;
 const put=(r,c,t,o={})=>{const x=ws.getCell(r,c);x.value=t;x.alignment={wrapText:true,vertical:'middle',horizontal:'left'};x.border=bd;const fo={};if(o.b)fo.bold=true;if(o.fc)fo.color={argb:'FF'+o.fc};if(o.b||o.fc)x.font=fo;if(o.f)x.fill=fill(o.f);if(o.n)x.note=o.n;return x};
-for(const sg of M.segs){ws.mergeCells(row,1,row,N);put(row,1,sg.c+' · '+sg.cards.length+' Shell SKUs',{b:1,f:'FBCE07'});row++;
+for(const sg of M.segs){ws=wb.addWorksheet(sg.c);ws.columns=Array.from({length:N},()=>({width:26}));row=1;ws.mergeCells(row,1,row,N);put(row,1,sg.c+' · '+sg.cards.length+' Shell SKUs',{b:1,f:'FBCE07'});row++;
 for(const c of sg.cards){const g=grid(c);ws.mergeCells(row,1,row,N);put(row,1,c.s.n+' · '+c.s.p+' L pack',{b:1,f:'EDEDF0'});row++;
-put(row,1,'Field',{b:1,f:'F4F4F6'});g.head.forEach((h,i)=>put(row,i+2,h.b+'\n'+(h.n||'Not Available'),{b:1,f:'F4F4F6',fc:h.n?'':'888888',n:h.cm}));row++;
+put(row,1,'Brand',{b:1,f:'F4F4F6'});g.head.forEach((h,i)=>put(row,i+2,h.b+'\n'+(h.n||'Not Available'),{b:1,f:'F4F4F6',fc:h.n?'':'888888',n:h.cm}));row++;
 const r0=row;g.rows.forEach(r=>{put(row,1,r.label+(r.sub?'\n'+r.sub:''),{b:1,f:'F4F4F6'});r.cells.forEach((x,i)=>{if(!x){put(row,i+2,'');return}const p=PAL[x.cls];put(row,i+2,x.t,{b:!!p,f:p?p[0]:x.fl?'FFF1C2':'',fc:p?p[1]:'',n:x.cm})});row++});
-g.head.forEach((h,i)=>{if(!h.n&&g.rows.length){ws.mergeCells(r0,i+2,row-1,i+2);const x=ws.getCell(r0,i+2);x.value='Not Available';x.alignment={horizontal:'center',vertical:'middle'};x.font={italic:true,color:{argb:'FF888888'}};x.fill=fill('F4F4F6')}});
 row++}}
 const w2=wb.addWorksheet('Cheapest & Costliest');w2.columns=[16,14,10,8,46,46,16,22].map(width=>({width}));
 ['API grade','Viscosity','Pack (L)','SKUs','Cheapest ₹/L','Costliest ₹/L','Shell ₹/L (best)','Shell rank (1 = cheapest)'].forEach((t,i)=>{const x=w2.getCell(1,i+1);x.value=t;x.font={bold:true};x.fill=fill('FBCE07');x.border=bd});
@@ -159,7 +159,7 @@ const apiUrl=a=>{const u=new URL(API_URL);if(a)u.searchParams.set('action',a);re
 async function pull(force){const st=$('#st');if(!API_URL||/^PASTE/.test(API_URL)){st.textContent='Set API_URL at the top of the script (Apps Script web app URL).';return}
 try{if(!force&&VER){const v=await(await fetch(apiUrl('version'))).json();if(v.error)throw new Error(v.error);if(v.version===VER){render();st.textContent='Up to date · checked '+new Date().toLocaleTimeString();return}}
 const d=await(await fetch(apiUrl())).json();if(d.error)throw new Error(d.error);
-const c=$('#cat').value;VER=d.version;loadTable([d.headers,...d.rows],d.changes);if([...$('#cat').options].some(o=>o.value==c))$('#cat').value=c;render();
+VER=d.version;loadTable([d.headers,...d.rows],d.changes);render();
 st.textContent='Live data · '+ALL.length+' products · updated '+new Date().toLocaleTimeString()}catch(e){st.textContent='API error: '+e.message}}
 $('#rf').onclick=()=>pull(true);pull(true);setInterval(()=>pull(false),60000);
 </script></body></html>
