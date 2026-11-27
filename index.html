@@ -31,16 +31,30 @@ details{margin-bottom:16px}summary{font-size:17px;font-weight:700;cursor:pointer
 .na{background:var(--card);color:var(--mut);text-align:center;vertical-align:middle!important;font-style:italic}
 .stabs{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.stabs button.on{background:var(--y);color:#222;border-color:var(--y);font-weight:600}.stabs button.on small{color:#222}
 td.cap{white-space:pre-line;font-size:13px;color:var(--fg)}
+.tabs{position:sticky;top:0;z-index:20;background:var(--bg);padding:6px 0;margin-bottom:8px}
+.stabs button .tag{margin-left:2px}
+.pkw{margin-top:3px;font-size:12px;font-weight:600;color:var(--at);background:var(--a);display:inline-block;padding:1px 6px;border-radius:5px}
+.scg{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px;margin-bottom:12px}
+.sc{border:1px solid var(--bd);border-radius:10px;padding:10px 12px;background:var(--card)}.scp{white-space:pre-line;font-weight:600;margin-bottom:4px}.scm{font-size:12px;color:var(--mut);margin-bottom:6px}
+.sl{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-top:1px solid var(--bd);font-size:13px}.sl b{white-space:nowrap}
+.mob{display:none}.mp{border:1px solid var(--bd);border-radius:10px;margin:8px 0;overflow:hidden}.mp.sh{border-color:#e4a400}.mp.na{padding:10px 12px;color:var(--mut);display:flex;justify-content:space-between}
+.mp summary{list-style:none;cursor:pointer;padding:10px 12px;font-weight:400}.mp summary::-webkit-details-marker{display:none}.mp.sh .mh{background:var(--card)}
+.mh{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;padding:10px 12px}.mp summary .mh{padding:0;background:none}
+.mh em{font-style:normal;font-weight:700;border-radius:8px;padding:4px 8px;white-space:nowrap;font-size:13px}.chev{color:var(--mut);transition:transform .15s}details[open]>summary .chev{transform:rotate(180deg)}
+.mr{display:flex;justify-content:space-between;gap:12px;padding:6px 12px;border-top:1px solid var(--bd);font-size:13px}.mr span{color:var(--mut)}.mr b{text-align:right;font-weight:500}
+@media(max-width:700px){.desk{display:none}.mob{display:block}body{padding:10px max(10px,env(safe-area-inset-right)) 10px max(10px,env(safe-area-inset-left))}h1{font-size:18px}
+button,input{min-height:40px}#q{flex:1;min-width:0}.tabs,.stabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}.tabs button,.stabs button{flex:0 0 auto}
+.scg{grid-template-columns:1fr}.leg span,.chips span{display:block;margin-right:0}.ct{font-size:15px}}
 </style></head><body>
 <h1>Shell Competition Price Benchmarking</h1>
 <div class="bar"><button id="rf">Refresh</button><button id="xl">⬇ Download Excel report</button><small id="st"></small></div>
 <div class="bar"><input id="q" placeholder="Search Shell SKU / API / viscosity…"></div>
-<div class="bar tabs"><button data-t="cmp" class="on">Segment view</button><button data-t="sch" id="tb-sch">Schemes &amp; Additional Offers</button><button data-t="seg">Segment summary</button><button data-t="hi">Cheapest &amp; costliest</button></div>
+<div class="bar tabs"><button data-t="cmp" class="on">Segment view</button><button data-t="sch" id="tb-sch">Schemes &amp; Additional Offers</button><button data-t="seg">Segment summary</button></div>
 <div id="info"></div>
 <div id="out"><div class="empty">Loading live data…</div></div>
 <script>
 const API_URL='https://script.google.com/macros/s/AKfycbwybcLy3hbggfIsPQ8nTlLwDKV8_qLLW4BtQz_rhJPXIKhz3JZUZ0_BpoXnH5vP75xEZA/exec';  // Apps Script web app URL (…/exec)
-const $=s=>document.querySelector(s);let SEG='',CH={},CAPMAP={},SPC=false,ALL=[],CAP={},FL=[],PC=[],tab='cmp',dim='c';
+const $=s=>document.querySelector(s);let SEG='',SCB='',CH={},CAPMAP={},SPC=false,ALL=[],CAP={},FL=[],PC=[],tab='cmp',dim='c';
 const ORD=['PCMO','MCO','CVO','AGRI','AUTO 3 WHEELER'];
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const num=v=>{v=parseFloat(String(v||'').replace(/[₹,\s]/g,''));return isNaN(v)?null:v};
@@ -96,29 +110,38 @@ return{s,cols:BR.map(b=>{const m=al.filter(r=>r.b==b).sort((x,y)=>(x.ak==s.ak?0:
 return{BR,segs}}
 function grid(c){const s=c.s,cs=[s,...c.cols.map(x=>x.r)],rows=[],bl=BASIS();
 FL.forEach(f=>{const vs=cs.map(r=>r?(/viscosity/i.test(f.h)?r.v:(r.raw[f.h]||'')):'');if(!vs.some(x=>x)&&!cs.some(r=>r&&r.cm[f.h]))return;
-rows.push({label:f.h,cells:cs.map((r,i)=>r?{t:(vs[i]||'—')+(/pack size/i.test(f.h)&&i&&r.p!=s.p?' (≠ Shell)':''),cm:r.cm[f.h]||'',fl:isNew(r,f.h)>0}:null)})});
-if(s.ppl!=null&&c.cols.some(x=>x.r&&x.r.ppl!=null))rows.push({label:'Price difference vs Shell (₹/Ltr)',sub:bl?bl.h:'',cells:cs.map((r,i)=>{if(!r)return null;if(!i)return{t:'Base (Shell)',cls:'muted'};if(r.ppl==null)return{t:'—'};const d=r.ppl-s.ppl;return{t:(d>0?'+':d<0?'−':'')+'₹'+Math.abs(d).toFixed(1)+'/L',cls:dcol(d),title:`${fm(r.ppl)}/L vs Shell ${fm(s.ppl)}/L`}})});
-return{head:cs.map((r,i)=>({b:i?c.cols[i-1].b:'Shell',n:r?r.n:'',cm:r?r.cm['Product Name']||'':''})),rows}}
+rows.push({label:f.h,cells:cs.map((r,i)=>r?{t:(vs[i]||'—')+(/pack size/i.test(f.h)&&i&&r.p!=s.p?' L (Shell '+s.p+' L)':''),cm:r.cm[f.h]||'',fl:isNew(r,f.h)>0}:null)})});
+if(s.ppl!=null&&c.cols.some(x=>x.r&&x.r.ppl!=null))rows.push({dl:true,label:'Price difference vs Shell (₹/Ltr)',sub:bl?bl.h:'',cells:cs.map((r,i)=>{if(!r)return null;if(!i)return{t:'Base (Shell)',cls:'muted'};if(r.ppl==null)return{t:'—'};const d=r.ppl-s.ppl;return{t:(d>0?'+':d<0?'−':'')+'₹'+Math.abs(d).toFixed(1)+'/L',cls:dcol(d),sub:r.p!=s.p?`per litre · ${r.p} L vs Shell ${s.p} L`:'',title:`${fm(r.ppl)}/L vs Shell ${fm(s.ppl)}/L`}})});
+return{head:cs.map((r,i)=>({b:i?c.cols[i-1].b:'Shell',n:r?r.n:'',cm:r?r.cm['Product Name']||'':'',pk:i&&r&&r.p!=s.p?`Actual pack ${r.p} L (Shell ${s.p} L)`:''})),rows}}
+function mp(g,ci){const h=g.head[ci],dr=g.rows.find(r=>r.dl),dx=dr&&dr.cells[ci];
+if(!h.n)return`<div class="mp na"><b>${esc(h.b)}</b><span>Not Available</span></div>`;
+const body=g.rows.filter(r=>!r.dl).map(r=>{const x=r.cells[ci];return`<div class="mr"><span>${esc(r.label)}</span><b${x&&x.fl?' class="fl"':''}${x&&x.cm?` data-c="${esc(x.cm)}"`:''}>${esc(x?x.t:'')}</b></div>`}).join('');
+const chip=ci&&dx&&/^[gra]$/.test(dx.cls||'')?`<em class="${dx.cls}">${esc(dx.t)}</em>`:'';
+const head=`<div class="mh"><div><small>${esc(h.b)}${ci?'':' · base'}</small><div>${esc(h.n)}</div>${h.pk?`<div class="pkw">${esc(h.pk)}</div>`:''}</div>${chip}${ci?'<span class="chev">▾</span>':''}</div>`;
+return ci?`<details class="mp"><summary>${head}</summary>${body}</details>`:`<div class="mp sh">${head}${body}</div>`}
 function blk(c){const g=grid(c),s=c.s,N=g.head.length+1,w=(100/N).toFixed(3),R=g.rows.length;
-const th=g.head.map(h=>h.n?`<th${h.cm?` data-c="${esc(h.cm)}"`:''}><small>${esc(h.b)}</small><br>${esc(h.n)}</th>`:`<th class="na"><small>${esc(h.b)}</small><br>Not Available</th>`).join('');
-const body=g.rows.map((r,ri)=>`<tr><th class="rh">${esc(r.label)}${r.sub?`<br><small>${esc(r.sub)}</small>`:''}</th>${r.cells.map(x=>x?`<td class="${x.cls||''}${x.fl?' fl':''}"${x.cm?` data-c="${esc(x.cm)}"`:''}${x.title?` title="${esc(x.title)}"`:''}>${/^[gra]$/.test(x.cls||'')?`<b>${esc(x.t)}</b>`:esc(x.t)}</td>`:'<td class="na"></td>').join('')}</tr>`).join('');
+const th=g.head.map(h=>h.n?`<th${h.cm?` data-c="${esc(h.cm)}"`:''}><small>${esc(h.b)}</small><br>${esc(h.n)}${h.pk?`<div class="pkw">${esc(h.pk)}</div>`:''}</th>`:`<th class="na"><small>${esc(h.b)}</small><br>Not Available</th>`).join('');
+const body=g.rows.map((r,ri)=>`<tr><th class="rh">${esc(r.label)}${r.sub?`<br><small>${esc(r.sub)}</small>`:''}</th>${r.cells.map(x=>x?`<td class="${x.cls||''}${x.fl?' fl':''}"${x.cm?` data-c="${esc(x.cm)}"`:''}${x.title?` title="${esc(x.title)}"`:''}>${/^[gra]$/.test(x.cls||'')?`<b>${esc(x.t)}</b>`:esc(x.t)}${x.sub?`<br><small>${esc(x.sub)}</small>`:''}</td>`:'<td class="na"></td>').join('')}</tr>`).join('');
 const more=c.cols.filter(x=>x.more.length).map(x=>`${esc(x.b)}: ${x.more.map(m=>esc(m.n)).join(', ')}`);
-return`<div class="ct"><b>${esc(s.n)}</b> <span>${s.p} L pack</span></div><div class="wrap blk"><table style="min-width:${N*130}px"><colgroup>${('<col style="width:'+w+'%">').repeat(N)}</colgroup><tr><th class="rh">Brand</th>${th}</tr>${body}</table></div>`+(more.length?`<p class="muted">Also mapped for this pack (not shown): ${more.join(' · ')}</p>`:'')}
+return`<div class="ct"><b>${esc(s.n)}</b> <span>${s.p} L pack</span></div><div class="desk"><div class="wrap blk"><table style="min-width:${N*130}px"><colgroup>${('<col style="width:'+w+'%">').repeat(N)}</colgroup><tr><th class="rh">Brand</th>${th}</tr>${body}</table></div></div><div class="mob">${g.head.map((h,i)=>mp(g,i)).join('')}</div>`+(more.length?`<p class="muted">Also mapped for this pack (not shown): ${more.join(' · ')}</p>`:'')}
 function setSeg(g){SEG=g;render()}
 function cmp(rs){const M=model(rs),P=Rp(rs);if(!M.segs.length)return'<div class="empty">No Shell SKUs match.</div>';
 if(!M.segs.some(g=>g.c==SEG))SEG=M.segs[0].c;const sg=M.segs.find(g=>g.c==SEG),st=stats(P.filter(r=>r.c==sg.c)),sa=stats(P.filter(r=>r.c==sg.c&&r.b=='Shell'));
 return`<div class="stabs">${M.segs.map(g=>`<button class="${g.c==SEG?'on':''}" data-s="${esc(g.c)}" onclick="setSeg(this.dataset.s)">${esc(g.c)} <small>${g.cards.length}</small></button>`).join('')}</div>
 <p class="leg"><span class="g">Competitor price higher than Shell (+₹/Ltr)</span><span class="a">Same as Shell</span><span class="r">Competitor price lower than Shell (−₹/Ltr)</span><small>Orange corner = comment from a Caption column. Same pack size is compared, unless a pack is given after the comma in Shell Products.</small></p>`+
 (st?`<p class="chips"><span class="r">Cheapest: ${fm(st.lo.ppl)}/L · ${esc(desc(st.lo))}</span><span class="g">Costliest: ${fm(st.hi.ppl)}/L · ${esc(desc(st.hi))}</span>${sa?`<span class="a">Shell avg: ${fm(sa.avg)}/L</span>`:''}</p>`:'')+sg.cards.map(blk).join('')}
+function setBr(b){SCB=b;render()}
 function sch(rs){const q=$('#q').value.toLowerCase(),T=TRF();
 if(!T.length)return'<div class="empty">No scheme / booster / MLP columns found in the sheet.</div>';
-const BRS=['Shell',...new Set(rs.filter(r=>r.b!='Shell').map(r=>r.b))];
-let h='<p class="leg"><span class="fl">Flashing = updated in the last 48 hours</span><small>Grouped by offer – products with the same offer and caption are combined. Shell is included.</small></p>',any=false;
-for(const f of T){const G={};rs.filter(r=>(r.raw[f.h]||r.cm[f.h])&&(r.b+' '+r.n).toLowerCase().includes(q)).forEach(r=>{const v=r.raw[f.h]||'',cm=r.cm[f.h]||'',k=[r.b,r.c,v,cm].join('\u0001');(G[k]=G[k]||{b:r.b,c:r.c,v,cm,rows:[]}).rows.push(r)});
-const gs=Object.values(G).sort((x,y)=>BRS.indexOf(x.b)-BRS.indexOf(y.b)||ORD.indexOf(x.c)-ORD.indexOf(y.c));if(!gs.length)continue;any=true;
-h+=`<h3>${esc(f.h)} <small>${gs.length} offers</small></h3><div class="wrap"><table><tr><th>Brand</th><th>Segment</th><th>Offer</th><th>Details / caption</th><th>Applicable products (pack, L)</th></tr>${gs.map(g=>{const t=Math.max(0,...g.rows.map(r=>isNew(r,f.h))),by={};g.rows.forEach(r=>(by[r.n]=by[r.n]||[]).push(r.p));
-return`<tr><td><b>${esc(g.b)}</b>${g.b=='Shell'?' <span class="tag a">Shell</span>':''}</td><td>${esc(g.c)}</td><td${t?' class="fl"':''}>${g.v?`<b>${esc(g.v)}</b>`:'<span class="muted">—</span>'}${t?`<div class="upd">Updated ${ago(t)}</div>`:''}</td><td class="cap">${g.cm?esc(g.cm):'—'}</td><td>${Object.keys(by).sort().map(n=>`<div>${esc(n)} <small>${[...new Set(by[n])].sort((a,b)=>a-b).join(', ')}</small></div>`).join('')}</td></tr>`}).join('')}</table></div>`}
-return any?h:'<div class="empty">No schemes, additional offers or MLP entered yet.</div>'}
+const BRS=['Shell',...new Set(rs.filter(r=>r.b!='Shell').map(r=>r.b))];if(!BRS.includes(SCB))SCB=BRS[0];
+const cnt=b=>new Set(rs.filter(r=>r.b==b&&T.some(f=>isNew(r,f.h))).map(r=>r.n)).size;
+let h=`<div class="stabs">${BRS.map(b=>{const n=cnt(b);return`<button class="${b==SCB?'on':''}" data-s="${esc(b)}" onclick="setBr(this.dataset.s)">${esc(b)}${n?` <span class="tag fl">${n}</span>`:''}</button>`}).join('')}</div><p class="leg"><span class="fl">Flashing = updated in the last 48 hours</span><small>Offers with the same caption are grouped together.</small></p>`,any=false;
+for(const f of T){const G={};rs.filter(r=>r.b==SCB&&(r.raw[f.h]||r.cm[f.h])&&r.n.toLowerCase().includes(q)).forEach(r=>{const cm=r.cm[f.h]||'';(G[cm]=G[cm]||{cm,rows:[]}).rows.push(r)});
+const gs=Object.values(G).sort((x,y)=>(!x.cm)-(!y.cm)||x.cm.localeCompare(y.cm));if(!gs.length)continue;any=true;
+h+=`<h3>${esc(f.h)} <small>${gs.length} group${gs.length>1?'s':''}</small></h3><div class="scg">${gs.map(g=>{const t=Math.max(0,...g.rows.map(r=>isNew(r,f.h))),by={};
+g.rows.sort((x,y)=>ORD.indexOf(x.c)-ORD.indexOf(y.c)||x.n.localeCompare(y.n)||x.p-y.p).forEach(r=>{const k=r.n+'\u0001'+(r.raw[f.h]||'');(by[k]=by[k]||{n:r.n,v:r.raw[f.h]||'',p:[]}).p.push(r.p)});
+return`<div class="sc${t?' fl':''}"><div class="scp">${g.cm?esc(g.cm):'<span class="muted">No caption</span>'}</div><div class="scm">${[...new Set(g.rows.map(r=>r.c))].map(esc).join(' · ')} · ${new Set(g.rows.map(r=>r.n)).size} products${t?` · <span class="upd">Updated ${ago(t)}</span>`:''}</div>${Object.values(by).map(o=>`<div class="sl"><span>${esc(o.n)} <small>${[...new Set(o.p)].sort((a,b)=>a-b).join(', ')} L</small></span><b>${o.v?esc(o.v):'—'}</b></div>`).join('')}</div>`}).join('')}</div>`}
+return h+(any?'':'<div class="empty">No schemes, additional offers or MLP entered for '+esc(SCB)+' yet.</div>')}
 const NOP='<div class="empty">No price values in the selected price column yet.</div>';
 function seg(rs){const P=Rp(rs);if(!P.length)return NOP;const bs=[...new Set(P.map(r=>r.b))].sort(),cats=[...new Set(P.map(r=>r.c))].sort((x,y)=>ORD.indexOf(x)-ORD.indexOf(y)),sel='';let h='';
 for(const c of cats.filter(c=>!sel||c==sel)){const sr=stats(P.filter(r=>r.b=='Shell'&&r.c==c));
@@ -126,12 +149,7 @@ h+=`<h3>${esc(c)}</h3><div class="wrap"><table><tr><th>Brand</th><th class="n">S
 for(const b of bs){const s=stats(P.filter(r=>r.b==b&&r.c==c));if(!s)continue;let d='';if(b=='Shell')d='<span class="tag a">Shell</span>';else if(sr){const p=s.avg-sr.avg;d=`<span class="${dcol(p)} tag">${p>0?'+':p<0?'−':''}₹${Math.abs(p).toFixed(1)}/L</span>`}
 h+=`<tr><td><b>${esc(b)}</b></td><td class="n">${s.n}</td><td class="n">${fm(s.avg)}</td><td class="n" title="${esc(desc(s.lo))}">${fm(s.lo.ppl)}</td><td class="n" title="${esc(desc(s.hi))}">${fm(s.hi.ppl)}</td><td class="n">${d}</td></tr>`}h+='</table></div>'}
 return`<p class="leg"><span class="g">Brand avg higher than Shell</span><span class="r">Brand avg lower than Shell</span></p>`+h}
-function hiData(rs){const P=Rp(rs),cat='',q=$('#q').value.toLowerCase(),g={};
-P.filter(r=>(!cat||r.c==cat)&&r.p).forEach(r=>{const k=r.ak+'|'+r.v+'|'+r.p;(g[k]=g[k]||[]).push(r)});
-return Object.values(g).filter(a=>a.length>1&&(a[0].ak+' '+a[0].v+' '+a[0].p).toLowerCase().includes(q)).map(a=>{const s=stats(a),srt=[...a].sort((x,y)=>x.ppl-y.ppl),sh=srt.find(r=>r.b=='Shell');return{api:a[0].ak,v:a[0].v,p:a[0].p,n:a.length,lo:s.lo,hi:s.hi,shell:sh,rank:sh?srt.indexOf(sh)+1:0}}).sort((x,y)=>(!!y.shell)-(!!x.shell)||x.api.localeCompare(y.api)||x.v.localeCompare(y.v)||x.p-y.p)}
-function hi(rs){if(!Rp(rs).length)return NOP;const D=hiData(rs);if(!D.length)return'<div class="empty">No like-for-like combinations found.</div>';
-return`<p class="leg"><span class="r">Cheapest ₹/L</span><span class="g">Costliest ₹/L</span><small>Like-for-like: same API grade + viscosity grade + pack size. Combinations with a Shell SKU come first.</small></p><div class="wrap"><table><tr><th>API grade</th><th>Viscosity</th><th class="n">Pack (L)</th><th class="n">SKUs</th><th>Cheapest ₹/L</th><th>Costliest ₹/L</th><th>Shell ₹/L (best)</th></tr>${D.map(d=>`<tr><td><b>${esc(d.api)}</b></td><td>${esc(d.v)}</td><td class="n">${d.p}</td><td class="n">${d.n}</td><td class="r">${fm(d.lo.ppl)}/L<br><small>${esc(d.lo.b+' · '+d.lo.n)}</small></td><td class="g">${fm(d.hi.ppl)}/L<br><small>${esc(d.hi.b+' · '+d.hi.n)}</small></td><td class="a">${d.shell?`${fm(d.shell.ppl)}/L<br><small>Rank ${d.rank} of ${d.n} (1 = cheapest)</small>`:'<span class="muted">no Shell SKU</span>'}</td></tr>`).join('')}</table></div>`}
-function render(){if(!ALL.length)return;const rs=R();$('#out').innerHTML=tab=='cmp'?cmp(rs):tab=='sch'?sch(rs):tab=='seg'?seg(rs):hi(rs);tabBadge(rs);const d=$('#dim');if(d){d.value=dim;d.onchange=()=>{dim=d.value;render()}}}
+function render(){if(!ALL.length)return;const rs=R();$('#out').innerHTML=tab=='cmp'?cmp(rs):tab=='sch'?sch(rs):tab=='seg'?seg(rs):cmp(rs);tabBadge(rs);const d=$('#dim');if(d){d.value=dim;d.onchange=()=>{dim=d.value;render()}}}
 ['q'].forEach(i=>$('#'+i).addEventListener(i=='q'?'input':'change',render));
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x==b));render()});
 const tip=document.createElement('div');tip.id='tip';document.body.appendChild(tip);
@@ -144,13 +162,10 @@ let ws,row=1;
 const put=(r,c,t,o={})=>{const x=ws.getCell(r,c);x.value=t;x.alignment={wrapText:true,vertical:'middle',horizontal:'left'};x.border=bd;const fo={};if(o.b)fo.bold=true;if(o.fc)fo.color={argb:'FF'+o.fc};if(o.b||o.fc)x.font=fo;if(o.f)x.fill=fill(o.f);if(o.n)x.note=o.n;return x};
 for(const sg of M.segs){ws=wb.addWorksheet(sg.c);ws.columns=Array.from({length:N},()=>({width:26}));row=1;ws.mergeCells(row,1,row,N);put(row,1,sg.c+' · '+sg.cards.length+' Shell SKUs',{b:1,f:'FBCE07'});row++;
 for(const c of sg.cards){const g=grid(c);ws.mergeCells(row,1,row,N);put(row,1,c.s.n+' · '+c.s.p+' L pack',{b:1,f:'EDEDF0'});row++;
-put(row,1,'Brand',{b:1,f:'F4F4F6'});g.head.forEach((h,i)=>put(row,i+2,h.b+'\n'+(h.n||'Not Available'),{b:1,f:'F4F4F6',fc:h.n?'':'888888',n:h.cm}));row++;
-const r0=row;g.rows.forEach(r=>{put(row,1,r.label+(r.sub?'\n'+r.sub:''),{b:1,f:'F4F4F6'});r.cells.forEach((x,i)=>{if(!x){put(row,i+2,'');return}const p=PAL[x.cls];put(row,i+2,x.t,{b:!!p,f:p?p[0]:x.fl?'FFF1C2':'',fc:p?p[1]:'',n:x.cm})});row++});
+put(row,1,'Brand',{b:1,f:'F4F4F6'});g.head.forEach((h,i)=>put(row,i+2,h.b+'\n'+(h.n||'Not Available')+(h.pk?'\n'+h.pk:''),{b:1,f:'F4F4F6',fc:h.n?'':'888888',n:h.cm}));row++;
+const r0=row;g.rows.forEach(r=>{put(row,1,r.label+(r.sub?'\n'+r.sub:''),{b:1,f:'F4F4F6'});r.cells.forEach((x,i)=>{if(!x){put(row,i+2,'');return}const p=PAL[x.cls];put(row,i+2,x.t+(x.sub?'\n'+x.sub:''),{b:!!p,f:p?p[0]:x.fl?'FFF1C2':'',fc:p?p[1]:'',n:x.cm})});row++});
 row++}}
-const w2=wb.addWorksheet('Cheapest & Costliest');w2.columns=[16,14,10,8,46,46,16,22].map(width=>({width}));
-['API grade','Viscosity','Pack (L)','SKUs','Cheapest ₹/L','Costliest ₹/L','Shell ₹/L (best)','Shell rank (1 = cheapest)'].forEach((t,i)=>{const x=w2.getCell(1,i+1);x.value=t;x.font={bold:true};x.fill=fill('FBCE07');x.border=bd});
-hiData(rs).forEach((d,k)=>[d.api,d.v,d.p,d.n,fm(d.lo.ppl)+'/L · '+desc(d.lo),fm(d.hi.ppl)+'/L · '+desc(d.hi),d.shell?fm(d.shell.ppl)+'/L':'—',d.rank||'—'].forEach((t,i)=>{const x=w2.getCell(k+2,i+1);x.value=t;x.border=bd;x.alignment={wrapText:true,vertical:'top'};if(i==4)x.fill=fill('FBDCDC');if(i==5)x.fill=fill('D6F2DC')}));
-w2.views=[{state:'frozen',ySplit:1}];return wb}
+return wb}
 async function exportXlsx(){const st=$('#st');if(!ALL.length)return;try{st.textContent='Building Excel report…';await ensureXL();const buf=await buildWb(R()).xlsx.writeBuffer(),a=document.createElement('a');
 a.href=URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));a.download='Shell_Competition_Price_Benchmarking_'+new Date().toISOString().slice(0,10)+'.xlsx';a.click();st.textContent='Excel report downloaded'}catch(e){st.textContent='Excel export failed: '+e.message}}
 $('#xl').onclick=exportXlsx;
